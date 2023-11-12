@@ -17,3 +17,8 @@ type Withdraw struct {
 	Sum         int    `json:"sum"`
 	ProcessedAt string `json:"processed_at"`
 }
+
+type AuthModel struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
