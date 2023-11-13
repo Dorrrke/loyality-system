@@ -2,9 +2,12 @@ module github.com/Dorrrke/loyality-system.git
 
 go 1.21.2
 
+require github.com/pkg/errors v0.9.1
+
 require (
 	github.com/caarlos0/env/v6 v6.10.1 // indirect
 	github.com/go-chi/chi/v5 v5.0.10 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect

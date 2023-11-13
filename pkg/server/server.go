@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -12,14 +12,23 @@ import (
 	"github.com/Dorrrke/loyality-system.git/internal/logger"
 	"github.com/Dorrrke/loyality-system.git/pkg/models"
 	"github.com/Dorrrke/loyality-system.git/pkg/storage"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
+
+const SecretKey = "SecretFurinaNotFokalors333"
 
 type Server struct {
 	storage storage.Storage
 	// config  string
+}
+
+type Claims struct {
+	jwt.RegisteredClaims
+	UserID string
 }
 
 func (s *Server) RegisterHandler(res http.ResponseWriter, req *http.Request) {
@@ -32,7 +41,8 @@ func (s *Server) RegisterHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := s.SaveUser(authModel); err != nil { // После сохранения, нужно достовать uid пользователя
+	uid, err := s.SaveUser(authModel)
+	if err != nil { // После сохранения, нужно достовать uid пользователя
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
@@ -45,6 +55,11 @@ func (s *Server) RegisterHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Внутренняя ошибка серевера", http.StatusInternalServerError)
 		return
 	}
+	token, err := CreateJWTToken(uid)
+	if err != nil {
+		logger.Log.Info("cannot create token", zap.Error(err))
+	}
+	res.Header().Add("Authorization", token)
 
 	// Так же надо сразу логинить пользователя, тобишь отправлть куку или в Header поле заносить userID
 	res.WriteHeader(http.StatusOK)
@@ -62,18 +77,22 @@ func (s *Server) LoginHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	check, err := s.CheckUser(authModel)
+	uid, err := s.getUser(authModel)
 	if err != nil {
 		logger.Log.Error("Check info from db error", zap.Error(err))
 		http.Error(res, "Внутренняя ошибка серевера", http.StatusInternalServerError)
 		return
 	}
-	if !check {
-		logger.Log.Info("Login&Password incorrect")
+	if uid == -1 {
+		logger.Log.Info("User not exist")
 		http.Error(res, "Неверная пара логин/пароль", http.StatusUnauthorized)
 		return
 	}
-	// надо логинить пользователя, тобишь отправлть куку или в Header поле заносить userID
+	token, err := CreateJWTToken(fmt.Sprint(uid))
+	if err != nil {
+		logger.Log.Info("cannot create token", zap.Error(err))
+	}
+	res.Header().Add("Authorization", token)
 	res.WriteHeader(http.StatusOK)
 }
 
@@ -128,15 +147,15 @@ func (s *Server) WriteOffBalanceHistoryHandler(res http.ResponseWriter, req *htt
 
 }
 
-func (s *Server) SaveUser(user models.AuthModel) error {
+func (s *Server) SaveUser(user models.AuthModel) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-	if err := s.storage.InsertUser(ctx, user.Login, user.Password); err != nil {
-		return err
+	uid, err := s.storage.InsertUser(ctx, user.Login, user.Password)
+	if err != nil {
+		return "", err
 	}
 
-	return nil
+	return uid, nil
 }
 
 func (s *Server) CheckUser(user models.AuthModel) (bool, error) {
@@ -148,6 +167,20 @@ func (s *Server) CheckUser(user models.AuthModel) (bool, error) {
 		return false, err
 	}
 	return check, nil
+}
+
+func (s *Server) getUser(user models.AuthModel) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	uid, err := s.storage.GetUserForLoginAndPass(ctx, user.Login, user.Password)
+	if err != nil {
+		return -1, errors.Wrap(err, "Get user for login/pass error")
+	}
+	if uid != 0 {
+		return uid, nil
+	}
+	return -1, nil
 }
 
 func (s *Server) getAllOrders(userID string) ([]models.Order, error) {
@@ -185,4 +218,36 @@ func checksum(number int) int {
 		number = number / 10
 	}
 	return luhn % 10
+}
+
+func CreateJWTToken(uuid string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
+		},
+		UserID: uuid,
+	})
+
+	tokenString, err := token.SignedString([]byte(SecretKey))
+	if err != nil {
+		return "", err
+	}
+	return tokenString, nil
+}
+
+func GetUID(tokenString string) string {
+	claim := &Claims{}
+
+	token, err := jwt.ParseWithClaims(tokenString, claim, func(t *jwt.Token) (interface{}, error) {
+		return []byte(SecretKey), nil
+	})
+	if err != nil {
+		return ""
+	}
+
+	if !token.Valid {
+		return ""
+	}
+	logger.Log.Info("Decode token:", zap.String("UserID:", claim.UserID))
+	return claim.UserID
 }
