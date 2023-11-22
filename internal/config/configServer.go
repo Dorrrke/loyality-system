@@ -14,7 +14,7 @@ type ServerAdrConfig struct {
 	Addr string `env:"SERVER_ADDRESS,required"`
 }
 type DataBaseConf struct {
-	DBDSN string `env:"DATABASE_DSN,required"`
+	DBDSN string `env:"DATABASE_URI,required"`
 }
 type AccrualAdrConf struct {
 	AccrualAddr string `env:"ACCRUAL_SYSTEM_ADDRESS,required"`
