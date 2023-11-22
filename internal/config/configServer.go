@@ -11,7 +11,7 @@ import (
 )
 
 type ServerAdrConfig struct {
-	Addr string `env:"SERVER_ADDRESS,required"`
+	Addr string `env:"RUN_ADDRESS,required"`
 }
 type DataBaseConf struct {
 	DBDSN string `env:"DATABASE_URI,required"`
