@@ -66,15 +66,15 @@ func run(s server.Server) error {
 		})
 		r.Get("/withdrawals", logger.WithLog(s.WriteOffBalanceHistoryHandler))
 	})
-	if s.Config.HostConfig.String() != "" {
-		logger.Log.Info("Run Server on", zap.String("Server addr", s.Config.HostConfig.String()))
+	if s.Config.HostConfig.String() != "" && s.Config.HostConfig.String() != ":0" {
+		logger.Log.Info("Run Server on", zap.String("Server addr from flag", s.Config.HostConfig.String()))
 		return http.ListenAndServe(s.Config.HostConfig.String(), r)
 	}
 	if s.Config.EnvValues.ServerCfg.Addr != "" {
-		logger.Log.Info("Run Server on", zap.String("Server addr", s.Config.EnvValues.ServerCfg.Addr))
+		logger.Log.Info("Run Server on", zap.String("Server addr from env", s.Config.EnvValues.ServerCfg.Addr))
 		return http.ListenAndServe(s.Config.EnvValues.ServerCfg.Addr, r)
 	}
-	logger.Log.Info("Run server on", zap.String("Server addr", "localhost:8080"))
+	logger.Log.Info("Run server on", zap.String("Server addr default", "localhost:8080"))
 	return http.ListenAndServe(":8080", r)
 }
 

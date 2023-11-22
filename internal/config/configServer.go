@@ -5,6 +5,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/Dorrrke/loyality-system.git/internal/logger"
+	"go.uber.org/zap"
 )
 
 type ServerAdrConfig struct {
@@ -27,7 +30,7 @@ func (config ConfigServer) String() string {
 }
 
 func (config *ConfigServer) Set(s string) error {
-
+	logger.Log.Info("Flag a:", zap.String("flag value", s))
 	matched, err := regexp.MatchString(`^[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, s)
 	if err != nil {
 		return err
