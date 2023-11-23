@@ -8,7 +8,7 @@ import (
 
 	"github.com/Dorrrke/loyality-system.git/internal/logger"
 	"github.com/Dorrrke/loyality-system.git/pkg/models"
-	"github.com/Dorrrke/loyality-system.git/pkg/storage/storage_errors"
+	storage_errors "github.com/Dorrrke/loyality-system.git/pkg/storage/storageErrors"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"

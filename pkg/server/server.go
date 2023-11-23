@@ -16,7 +16,7 @@ import (
 	"github.com/Dorrrke/loyality-system.git/internal/logger"
 	"github.com/Dorrrke/loyality-system.git/pkg/models"
 	"github.com/Dorrrke/loyality-system.git/pkg/storage"
-	"github.com/Dorrrke/loyality-system.git/pkg/storage/storage_errors"
+	storage_errors "github.com/Dorrrke/loyality-system.git/pkg/storage/storageErrors"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -350,11 +350,11 @@ func (s *Server) getAllOrders(userID string) ([]models.Order, error) {
 	return orders, nil
 }
 
-func (s *Server) getWriteOffHistory(userId string) ([]models.WithdrawInfo, error) {
+func (s *Server) getWriteOffHistory(userID string) ([]models.WithdrawInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	uid, err := strconv.Atoi(userId)
+	uid, err := strconv.Atoi(userID)
 	if err != nil {
 		logger.Log.Error("str to int err", zap.Error(err))
 		return nil, err
@@ -379,8 +379,8 @@ func (s *Server) updateOrderAndBalance(accrual models.AccrualModel, userID strin
 	return nil
 }
 
-func (s *Server) writeOffBonuces(withdraw models.Withdraw, userId string) error {
-	balance, err := s.getUserBalance(userId)
+func (s *Server) writeOffBonuces(withdraw models.Withdraw, userID string) error {
+	balance, err := s.getUserBalance(userID)
 	if err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func (s *Server) writeOffBonuces(withdraw models.Withdraw, userId string) error 
 		return errors.New("insufficient fund")
 	}
 
-	uid, err := strconv.Atoi(userId)
+	uid, err := strconv.Atoi(userID)
 	if err != nil {
 		logger.Log.Error("str to int err", zap.Error(err))
 		return err

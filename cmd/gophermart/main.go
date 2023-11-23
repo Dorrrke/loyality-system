@@ -62,7 +62,7 @@ func main() {
 		log.Println("Error init db")
 		log.Println("DB env str" + s.Config.EnvValues.DataBaseDsn.DBDSN)
 		log.Println("DB flag str" + DBaddr)
-		panic(errors.New("Not init db"))
+		panic(errors.New("not init db"))
 	}
 	go func() {
 		if err := s.CreateTable(); err != nil {
