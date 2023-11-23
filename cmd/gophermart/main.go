@@ -56,7 +56,7 @@ func main() {
 	}
 	accrualErr := env.Parse(&s.Config.EnvValues.AccrualCfg)
 	if accrualErr == nil {
-		s.Config.HostConfig.Set(s.Config.EnvValues.AccrualCfg.AccrualAddr)
+		s.Config.AccrualConfig.Set(s.Config.EnvValues.AccrualCfg.AccrualAddr)
 	}
 	if s.Config.EnvValues.DataBaseDsn.DBDSN == "" && DBaddr == "" {
 		log.Println("Error init db")
