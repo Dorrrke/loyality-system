@@ -22,9 +22,9 @@ jobs:
         with:
           repository: Yandex-Practicum/go-autotests-bin
           latest: true
+          tag: "v0.9.16"
           fileName: statictest
           out-file-path: .tools
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup autotest binary
         run: |
