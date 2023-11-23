@@ -80,7 +80,7 @@ func (db *DataBaseStorage) GetUserByLogin(ctx context.Context, login string, pas
 	return uid, pass, nil
 }
 func (db *DataBaseStorage) InsertOrder(ctx context.Context, uuid string, orderNumber string) error {
-	_, err := db.DB.Exec(ctx, "insert into orders (uid, number, status) values ($1, $2, $3)", uuid, orderNumber, "NEW")
+	_, err := db.DB.Exec(ctx, "insert into orders (uid, number, status, accrual) values ($1, $2, $3, 0)", uuid, orderNumber, "NEW")
 	if err != nil {
 		return errors.Wrap(err, "Insert order error")
 	}
@@ -173,14 +173,14 @@ func (db *DataBaseStorage) InsertWriteOffBonuces(ctx context.Context, withdraw m
 		return err
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Prepare(ctx, "update balance", "update user_balance set current = $1, withdrawn=$2 where uid = $3"); err != nil {
+	if _, err := tx.Prepare(ctx, "update user balance", "update user_balance set current = $1, withdrawn=$2 where uid = $3"); err != nil {
 		return err
 	}
 	if _, err := tx.Prepare(ctx, "update history", "insert into withdrawals (order_id, sum, uid) values ((select id from orders where number = $1), $2, $3)"); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(ctx, "update balance", current, withdraw.Sum, userID); err != nil {
+	if _, err := tx.Exec(ctx, "update user balance", current, withdraw.Sum, userID); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, "update history", withdraw.Order, withdraw.Sum, userID); err != nil {
