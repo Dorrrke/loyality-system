@@ -173,10 +173,10 @@ func (db *DataBaseStorage) InsertWriteOffBonuces(ctx context.Context, withdraw m
 		return err
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Prepare(ctx, "update user balance", "update user_balance set current = $1, withdrawn=$2 where uid = $3"); err != nil {
+	if _, err := tx.Prepare(ctx, "update user balance", "update user_balance set current = $1, withdrawn = $2 where uid = $3"); err != nil {
 		return err
 	}
-	if _, err := tx.Prepare(ctx, "update history", "insert into withdrawals (order_id, sum, uid) values ((select id from orders where number = $1), $2, $3)"); err != nil {
+	if _, err := tx.Prepare(ctx, "update history", "insert into withdrawals (order, sum, uid) values ($1, $2, $3)"); err != nil {
 		return err
 	}
 
@@ -273,11 +273,11 @@ func (db *DataBaseStorage) CreateTables(ctx context.Context) error {
 	_, err = tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS withdrawals
 	(
 		w_id serial PRIMARY KEY,
-		order_id integer NOT NULL,
+		"order" character(255) NOT NULL,
 		sum real NOT NULL,
 		processed_at timestamp with time zone NOT NULL DEFAULT now(),
 		uid integer NOT NULL,
-		FOREIGN KEY (order_id) REFERENCES public.orders (id) ON UPDATE CASCADE ON DELETE CASCADE
+		FOREIGN KEY (uid) REFERENCES users (uid) ON UPDATE CASCADE ON DELETE CASCADE
 	)`)
 	if err != nil {
 		return errors.Wrap(err, "withdrawals table err")
