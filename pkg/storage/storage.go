@@ -142,7 +142,7 @@ func (db *DataBaseStorage) GetUserBalance(ctx context.Context, userID int) (mode
 
 }
 func (db *DataBaseStorage) GetUsersWithdrawls(ctx context.Context, userID int) ([]models.WithdrawInfo, error) {
-	rows, err := db.DB.Query(ctx, "select number, sum, processed_at from withdrawals LEFT JOIN orders on withdrawals.order_id = orders.id where withdrawals.uid = $1 order by processed_at", userID)
+	rows, err := db.DB.Query(ctx, `select "order", sum, processed_at from withdrawals where uid = $1 order by processed_at`, userID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Get withdrawls history error")
 	}
