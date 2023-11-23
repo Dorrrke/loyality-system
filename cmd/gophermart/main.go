@@ -28,8 +28,8 @@ func main() {
 	var DBaddr string
 
 	flag.Var(&s.Config.HostConfig, "a", "address and port to run server")
-	flag.Var(&s.Config.AccrualConfig, "r", "address and port accrual")
 	flag.StringVar(&DBaddr, "d", "", "databse addr")
+	flag.Var(&s.Config.AccrualConfig, "r", "address and port accrual")
 
 	flag.Parse()
 	servErr := env.Parse(&s.Config.EnvValues.ServerCfg)
