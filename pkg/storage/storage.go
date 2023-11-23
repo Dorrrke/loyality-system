@@ -8,7 +8,7 @@ import (
 
 	"github.com/Dorrrke/loyality-system.git/internal/logger"
 	"github.com/Dorrrke/loyality-system.git/pkg/models"
-	storage_errors "github.com/Dorrrke/loyality-system.git/pkg/storage/storageErrors"
+	"github.com/Dorrrke/loyality-system.git/pkg/storage/storageErrors"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -42,8 +42,8 @@ func (db *DataBaseStorage) InsertUser(ctx context.Context, login string, passHas
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
-				logger.Log.Error("Register error", zap.Error(storage_errors.ErrLoginCOnflict))
-				return ``, storage_errors.ErrLoginCOnflict
+				logger.Log.Error("Register error", zap.Error(storageErrors.ErrLoginCOnflict))
+				return ``, storageErrors.ErrLoginCOnflict
 			}
 			return "", err
 		}
@@ -72,7 +72,7 @@ func (db *DataBaseStorage) GetUserByLogin(ctx context.Context, login string, pas
 	)
 	if err := row.Scan(&uid, &pass); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return -1, ``, storage_errors.ErrUserNotExists
+			return -1, ``, storageErrors.ErrUserNotExists
 		}
 		return -1, ``, errors.Wrap(err, "Error parsing db info")
 	}
@@ -91,7 +91,7 @@ func (db *DataBaseStorage) CheckOrder(ctx context.Context, order string) (string
 	var uid string
 	if err := row.Scan(&uid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", storage_errors.ErrOrderNotExist
+			return "", storageErrors.ErrOrderNotExist
 		}
 		return "", errors.Wrap(err, "Scan row error")
 	}
@@ -123,7 +123,7 @@ func (db *DataBaseStorage) GetAllOrders(ctx context.Context, userID string) ([]m
 	}
 
 	if len(orders) == 0 {
-		return nil, storage_errors.ErrOrdersNotExist
+		return nil, storageErrors.ErrOrdersNotExist
 	}
 
 	return orders, nil

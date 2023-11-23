@@ -16,7 +16,7 @@ import (
 	"github.com/Dorrrke/loyality-system.git/internal/logger"
 	"github.com/Dorrrke/loyality-system.git/pkg/models"
 	"github.com/Dorrrke/loyality-system.git/pkg/storage"
-	storage_errors "github.com/Dorrrke/loyality-system.git/pkg/storage/storageErrors"
+	"github.com/Dorrrke/loyality-system.git/pkg/storage/storageErrors"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -57,7 +57,7 @@ func (s *Server) RegisterHandler(res http.ResponseWriter, req *http.Request) {
 
 	uid, err := s.saveUser(authModel, salt)
 	if err != nil { // После сохранения, нужно достовать uid пользователя
-		if errors.Is(err, storage_errors.ErrLoginCOnflict) {
+		if errors.Is(err, storageErrors.ErrLoginCOnflict) {
 			http.Error(res, "Логин занят", http.StatusConflict)
 			return
 		}
@@ -89,7 +89,7 @@ func (s *Server) LoginHandler(res http.ResponseWriter, req *http.Request) {
 
 	uid, err := s.getUser(authModel)
 	if err != nil {
-		if errors.Is(err, storage_errors.ErrUserNotExists) || err.Error() == "Password does not correct" {
+		if errors.Is(err, storageErrors.ErrUserNotExists) || err.Error() == "Password does not correct" {
 			logger.Log.Error("User not exist", zap.Error(err))
 			http.Error(res, "Неверная пара логин/пароль", http.StatusUnauthorized)
 			return
@@ -129,7 +129,7 @@ func (s *Server) UploadOrderHandler(res http.ResponseWriter, req *http.Request) 
 
 	uid, err := s.checkOrder(string(orderNum), userID)
 	if err != nil {
-		if errors.Is(err, storage_errors.ErrOrderNotExist) {
+		if errors.Is(err, storageErrors.ErrOrderNotExist) {
 			logger.Log.Info("UserID", zap.String("UID from toketn", userID), zap.String("UserId from db", uid))
 			err = s.uploadOrder(string(orderNum), userID)
 			if err != nil {
@@ -162,7 +162,7 @@ func (s *Server) UnloadHandler(res http.ResponseWriter, req *http.Request) {
 	}
 	orders, err := s.getAllOrders(userID)
 	if err != nil {
-		if errors.Is(err, storage_errors.ErrOrdersNotExist) {
+		if errors.Is(err, storageErrors.ErrOrdersNotExist) {
 			logger.Log.Error("User havnt orders")
 			http.Error(res, "Нет данных для ответа", http.StatusNoContent)
 			return
