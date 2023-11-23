@@ -508,6 +508,15 @@ func (s *Server) uploadOrder(order string, uid string) error {
 	return nil
 }
 
+func (s *Server) CreateTable() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.storage.CreateTables(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Server) ConnStorage(stor storage.Storage) {
 	s.storage = stor
 }

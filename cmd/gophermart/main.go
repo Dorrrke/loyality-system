@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"log"
 	"net/http"
@@ -17,8 +18,10 @@ import (
 
 func main() {
 
+	log.Println("Init logger")
 	if err := logger.Initialize(zap.InfoLevel.String()); err != nil {
 		log.Println("init logger error" + err.Error())
+		log.Println("Panic logger")
 		panic(err)
 	}
 	var s server.Server
@@ -36,17 +39,38 @@ func main() {
 
 	dbDsnErr := env.Parse(&s.Config.EnvValues.DataBaseDsn)
 	if dbDsnErr == nil {
+		log.Println("DB env str" + s.Config.EnvValues.DataBaseDsn.DBDSN)
 		conn := initDB(s.Config.EnvValues.DataBaseDsn.DBDSN)
 		s.ConnStorage(&storage.DataBaseStorage{DB: conn})
 		defer conn.Close()
+	}
+	if dbDsnErr != nil {
+		if DBaddr != "" {
+			log.Println("DB flag str" + DBaddr)
+			conn := initDB(DBaddr)
+			s.ConnStorage(&storage.DataBaseStorage{DB: conn})
+			defer conn.Close()
+		}
 	}
 	accrualErr := env.Parse(&s.Config.EnvValues.AccrualCfg)
 	if accrualErr == nil {
 		s.Config.HostConfig.Set(s.Config.EnvValues.AccrualCfg.AccrualAddr)
 	}
+	if s.Config.EnvValues.DataBaseDsn.DBDSN == "" && DBaddr == "" {
+		log.Println("Error init db")
+		log.Println("DB env str" + s.Config.EnvValues.DataBaseDsn.DBDSN)
+		log.Println("DB flag str" + DBaddr)
+		panic(errors.New("Not init db"))
+	}
+	go func() {
+		if err := s.CreateTable(); err != nil {
+			logger.Log.Error("Error create tables", zap.Error(err))
+		}
+	}()
 	err := run(s)
 	if err != nil {
 		logger.Log.Error("Run server error", zap.Error(err))
+		log.Println("Panic run")
 		panic(err)
 	}
 }
@@ -82,6 +106,7 @@ func initDB(DBAddr string) *pgxpool.Pool {
 	pool, err := pgxpool.New(context.Background(), DBAddr)
 	if err != nil {
 		logger.Log.Error("Error wile init db driver: " + err.Error())
+		log.Println("Panic db")
 		panic(err)
 	}
 	return pool

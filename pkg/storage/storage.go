@@ -28,6 +28,7 @@ type Storage interface {
 	GetUserByLogin(ctx context.Context, login string, password string) (int, string, error)
 	CheckOrder(ctx context.Context, order string) (string, error)
 	UpdateByAccrual(ctx context.Context, accrual models.AccrualModel, userID string) error
+	CreateTables(ctx context.Context) error
 }
 
 type DataBaseStorage struct {
@@ -215,10 +216,75 @@ func (db *DataBaseStorage) UpdateByAccrual(ctx context.Context, accrual models.A
 		return err
 	}
 	return tx.Commit(ctx)
+}
 
-	// _, err := db.DB.Exec(ctx, "update orders set status = $1, accrual = $2 where number = $3", accrual.Status, accrual.Accrual, accrual.OrderNumber)
-	// if err != nil {
-	// 	return errors.Wrap(err, "Error update order")
-	// }
-	// return nil
+func (db *DataBaseStorage) CreateTables(ctx context.Context) error {
+	tx, err := db.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS users
+	(
+			uid serial PRIMARY KEY,
+			login character(255) NOT NULL,
+			password character(64) NOT NULL
+	)`)
+	if err != nil {
+		return errors.Wrap(err, "users table err")
+	}
+
+	_, err = tx.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS login_id ON users (login)`)
+	if err != nil {
+		return errors.Wrap(err, "users index err")
+	}
+
+	_, err = tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS user_balance
+	(
+		id serial PRIMARY KEY,
+		uid integer NOT NULL,
+		current real NOT NULL,
+		withdrawn real NOT NULL,
+		FOREIGN KEY (uid) REFERENCES users (uid) ON UPDATE CASCADE ON DELETE CASCADE
+	)`)
+	if err != nil {
+		return errors.Wrap(err, "users_balance table err")
+	}
+	_, err = tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS orders
+	(
+		id serial PRIMARY KEY,
+		"number" character(55) NOT NULL,
+		status character(125),
+		accrual real,
+		date timestamp with time zone NOT NULL DEFAULT now(),
+		uid integer NOT NULL DEFAULT 1,
+		FOREIGN KEY (uid) REFERENCES users (uid) ON UPDATE CASCADE ON DELETE CASCADE
+	)`)
+	if err != nil {
+		return errors.Wrap(err, "orders table err")
+	}
+
+	_, err = tx.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS order_id ON orders (number)`)
+	if err != nil {
+		return errors.Wrap(err, "orders table index err")
+	}
+
+	_, err = tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS withdrawals
+	(
+		w_id serial PRIMARY KEY,
+		order_id integer NOT NULL,
+		sum real NOT NULL,
+		processed_at timestamp with time zone NOT NULL DEFAULT now(),
+		uid integer NOT NULL,
+		FOREIGN KEY (order_id) REFERENCES public.orders (id) ON UPDATE CASCADE ON DELETE CASCADE
+	)`)
+	if err != nil {
+		return errors.Wrap(err, "withdrawals table err")
+	}
+	_, err = tx.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS order_id ON orders (number)`)
+	if err != nil {
+		return errors.Wrap(err, "withdrawals table index err")
+	}
+	return tx.Commit(ctx)
 }
