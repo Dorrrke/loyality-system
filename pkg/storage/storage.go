@@ -176,7 +176,7 @@ func (db *DataBaseStorage) InsertWriteOffBonuces(ctx context.Context, withdraw m
 	if _, err := tx.Prepare(ctx, "update user balance", "update user_balance set current = $1, withdrawn = $2 where uid = $3"); err != nil {
 		return err
 	}
-	if _, err := tx.Prepare(ctx, "update history", "insert into withdrawals (order, sum, uid) values ($1, $2, $3)"); err != nil {
+	if _, err := tx.Prepare(ctx, "update history", `insert into withdrawals ("order", sum, uid) values ($1, $2, $3)`); err != nil {
 		return err
 	}
 
