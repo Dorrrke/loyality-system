@@ -16,7 +16,7 @@ import (
 	"github.com/Dorrrke/loyality-system.git/internal/logger"
 	"github.com/Dorrrke/loyality-system.git/pkg/models"
 	"github.com/Dorrrke/loyality-system.git/pkg/storage"
-	"github.com/Dorrrke/loyality-system.git/pkg/storage/storageerrors"
+	"github.com/Dorrrke/loyality-system.git/pkg/storage/errorsstorage"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -57,7 +57,7 @@ func (s *Server) RegisterHandler(res http.ResponseWriter, req *http.Request) {
 
 	uid, err := s.saveUser(authModel, salt)
 	if err != nil { // После сохранения, нужно достовать uid пользователя
-		if errors.Is(err, storageerrors.ErrLoginCOnflict) {
+		if errors.Is(err, errorsstorage.ErrLoginCOnflict) {
 			http.Error(res, "Логин занят", http.StatusConflict)
 			return
 		}
@@ -89,7 +89,7 @@ func (s *Server) LoginHandler(res http.ResponseWriter, req *http.Request) {
 
 	uid, err := s.getUser(authModel)
 	if err != nil {
-		if errors.Is(err, storageerrors.ErrUserNotExists) || err.Error() == "Password does not correct" {
+		if errors.Is(err, errorsstorage.ErrUserNotExists) || err.Error() == "Password does not correct" {
 			logger.Log.Error("User not exist", zap.Error(err))
 			http.Error(res, "Неверная пара логин/пароль", http.StatusUnauthorized)
 			return
@@ -129,7 +129,7 @@ func (s *Server) UploadOrderHandler(res http.ResponseWriter, req *http.Request) 
 
 	uid, err := s.checkOrder(string(orderNum), userID)
 	if err != nil {
-		if errors.Is(err, storageerrors.ErrOrderNotExist) {
+		if errors.Is(err, errorsstorage.ErrOrderNotExist) {
 			logger.Log.Info("UserID", zap.String("UID from toketn", userID), zap.String("UserId from db", uid))
 			err = s.uploadOrder(string(orderNum), userID)
 			if err != nil {
@@ -162,7 +162,7 @@ func (s *Server) UnloadHandler(res http.ResponseWriter, req *http.Request) {
 	}
 	orders, err := s.getAllOrders(userID)
 	if err != nil {
-		if errors.Is(err, storageerrors.ErrOrdersNotExist) {
+		if errors.Is(err, errorsstorage.ErrOrdersNotExist) {
 			logger.Log.Error("User havnt orders")
 			http.Error(res, "Нет данных для ответа", http.StatusNoContent)
 			return
@@ -178,7 +178,6 @@ func (s *Server) UnloadHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Внутренняя ошибка", http.StatusInternalServerError)
 		return
 	}
-	res.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) GetBalanceHandler(res http.ResponseWriter, req *http.Request) {
@@ -200,7 +199,6 @@ func (s *Server) GetBalanceHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Внутренняя ошибка", http.StatusInternalServerError)
 		return
 	}
-	res.WriteHeader(http.StatusOK)
 
 }
 
@@ -226,6 +224,10 @@ func (s *Server) WriteOffBonusHandler(res http.ResponseWriter, req *http.Request
 		return
 	}
 	if err := s.writeOffBonuces(withdraw, userID); err != nil {
+		if err.Error() == "insufficient fund" {
+			http.Error(res, "Недостаточно средств", http.StatusPaymentRequired)
+			return
+		}
 		logger.Log.Error("write off error", zap.Error(err))
 		http.Error(res, "Внутренняя ошибка сервера", http.StatusInternalServerError)
 		return
@@ -242,6 +244,11 @@ func (s *Server) WriteOffBalanceHistoryHandler(res http.ResponseWriter, req *htt
 	}
 	history, err := s.getWriteOffHistory(userID)
 	if err != nil {
+		if errors.Is(err, errorsstorage.ErrWriteOffNotExist) {
+			logger.Log.Error("User havnt write off")
+			http.Error(res, "нет ни одного списания", http.StatusNoContent)
+			return
+		}
 		logger.Log.Error("get history error", zap.Error(err))
 		http.Error(res, "Внутренняя ошибка сервера", http.StatusInternalServerError)
 		return
@@ -512,6 +519,15 @@ func (s *Server) CreateTable() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := s.storage.CreateTables(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Server) ClearTables() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.storage.ClearTables(ctx); err != nil {
 		return err
 	}
 	return nil

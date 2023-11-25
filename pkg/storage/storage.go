@@ -8,7 +8,7 @@ import (
 
 	"github.com/Dorrrke/loyality-system.git/internal/logger"
 	"github.com/Dorrrke/loyality-system.git/pkg/models"
-	"github.com/Dorrrke/loyality-system.git/pkg/storage/storageerrors"
+	"github.com/Dorrrke/loyality-system.git/pkg/storage/errorsstorage"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -29,6 +29,7 @@ type Storage interface {
 	CheckOrder(ctx context.Context, order string) (string, error)
 	UpdateByAccrual(ctx context.Context, accrual models.AccrualModel, userID string) error
 	CreateTables(ctx context.Context) error
+	ClearTables(ctx context.Context) error
 }
 
 type DataBaseStorage struct {
@@ -42,8 +43,8 @@ func (db *DataBaseStorage) InsertUser(ctx context.Context, login string, passHas
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
-				logger.Log.Error("Register error", zap.Error(storageerrors.ErrLoginCOnflict))
-				return ``, storageerrors.ErrLoginCOnflict
+				logger.Log.Error("Register error", zap.Error(errorsstorage.ErrLoginCOnflict))
+				return ``, errorsstorage.ErrLoginCOnflict
 			}
 			return "", err
 		}
@@ -53,7 +54,10 @@ func (db *DataBaseStorage) InsertUser(ctx context.Context, login string, passHas
 	if err != nil {
 		logger.Log.Error("str to int err", zap.Error(err))
 	}
-	db.DB.Exec(ctx, "insert into user_balance (uid, current, withdrawn) values ($1, 0, 0)", userID)
+	_, err = db.DB.Exec(ctx, "insert into user_balance (uid, current, withdrawn) values ($1, 0, 0)", userID)
+	if err != nil {
+		return ``, errors.Wrap(err, "Insert user balance error")
+	}
 	return uuid, nil
 }
 func (db *DataBaseStorage) CheckUser(ctx context.Context, login string, passHash string) (bool, error) {
@@ -72,7 +76,7 @@ func (db *DataBaseStorage) GetUserByLogin(ctx context.Context, login string, pas
 	)
 	if err := row.Scan(&uid, &pass); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return -1, ``, storageerrors.ErrUserNotExists
+			return -1, ``, errorsstorage.ErrUserNotExists
 		}
 		return -1, ``, errors.Wrap(err, "Error parsing db info")
 	}
@@ -91,7 +95,7 @@ func (db *DataBaseStorage) CheckOrder(ctx context.Context, order string) (string
 	var uid string
 	if err := row.Scan(&uid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", storageerrors.ErrOrderNotExist
+			return "", errorsstorage.ErrOrderNotExist
 		}
 		return "", errors.Wrap(err, "Scan row error")
 	}
@@ -123,7 +127,7 @@ func (db *DataBaseStorage) GetAllOrders(ctx context.Context, userID string) ([]m
 	}
 
 	if len(orders) == 0 {
-		return nil, storageerrors.ErrOrdersNotExist
+		return nil, errorsstorage.ErrOrdersNotExist
 	}
 
 	return orders, nil
@@ -162,6 +166,10 @@ func (db *DataBaseStorage) GetUsersWithdrawls(ctx context.Context, userID int) (
 	err = rows.Err()
 	if err != nil {
 		return nil, err
+	}
+
+	if len(withdrawls) == 0 {
+		return nil, errorsstorage.ErrWriteOffNotExist
 	}
 
 	return withdrawls, nil
@@ -285,6 +293,34 @@ func (db *DataBaseStorage) CreateTables(ctx context.Context) error {
 	_, err = tx.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS order_id ON orders (number)`)
 	if err != nil {
 		return errors.Wrap(err, "withdrawals table index err")
+	}
+	return tx.Commit(ctx)
+}
+
+func (db *DataBaseStorage) ClearTables(ctx context.Context) error {
+	tx, err := db.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `DELETE FROM users`)
+	if err != nil {
+		return errors.Wrap(err, "users table err")
+	}
+
+	_, err = tx.Exec(ctx, `DELETE FROM user_balance`)
+	if err != nil {
+		return errors.Wrap(err, "users_balance table err")
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM orders`)
+	if err != nil {
+		return errors.Wrap(err, "orders table err")
+	}
+
+	_, err = tx.Exec(ctx, `DELETE FROM withdrawals`)
+	if err != nil {
+		return errors.Wrap(err, "withdrawals table err")
 	}
 	return tx.Commit(ctx)
 }
