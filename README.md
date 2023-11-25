@@ -31,8 +31,7 @@
 
 ## Библиотеки и технологии
 Языки программирования: ![Go](https://img.shields.io/badge/-Go-0E2336?style=for-the-badge&logo=Go)
-Библиотеки: Chi, pgx, Zap, env, JWT
-СУБД: PostgreSQL
+СУБД: [PostgreSQL](https://img.shields.io/badge/-SQL-0E2336?style=for-the-badge&logo=postgresql)
 
 ## Запуск
 В корне проекта находится Makefile при помощи которого можено собрать, запустить и протестировать систему.
