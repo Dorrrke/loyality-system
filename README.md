@@ -30,8 +30,8 @@
 Хендлеры сервиса описаны тестами
 
 ## Библиотеки и технологии
-Языки программирования: ![Go](https://img.shields.io/badge/-Go-0E2336?style=for-the-badge&logo=Go)
-СУБД: [PostgreSQL](https://img.shields.io/badge/-SQL-0E2336?style=for-the-badge&logo=postgresql)
+* Языки программирования: Go
+* СУБД: PostgreSQL
 
 ## Запуск
 В корне проекта находится Makefile при помощи которого можено собрать, запустить и протестировать систему.
