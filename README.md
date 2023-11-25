@@ -39,13 +39,13 @@
 Makefile имеет следующие возможности:
 ```
 $ make help
-Usage: \n
-- build                                         Build project
-- test                                          Run project tests
-- test                                          Run project
-- clean                                         Cache clean
-- dep                                           download lib
-- lint                                          Run linters
-- Show help for each of the Makefile recipes.
+Usage:
+- build   Build project
+- test    Run project tests
+- run     Run project
+- clean   Cache clean
+- dep     download lib
+- lint    Run linters
+- help    Show help for each of the Makefile recipes.
 ```
 

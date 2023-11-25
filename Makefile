@@ -11,7 +11,7 @@ test:
 	go test ./... -db="postgres://postgres:6406655@localhost:5432/testdata" -r="localhost:8080"
 
 run: 
-## test: Run project
+## run: Run project
 	./${BINARY_NAME}
 
 clean: 
@@ -29,5 +29,5 @@ lint:
 
 help: 
 ## help: Show help for each of the Makefile recipes.
-	@echo "Usage: \n"
+	@echo "Usage:"
 	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' | sed -e 's/^/-/'
