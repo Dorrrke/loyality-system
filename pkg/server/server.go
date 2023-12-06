@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -263,42 +262,45 @@ func (s *Server) WriteOffBalanceHistoryHandler(res http.ResponseWriter, req *htt
 }
 
 func (s *Server) getFromAccrualSys(orderNumber string, userID string) error {
-	client := &http.Client{}
-	response, err := client.Get("http://" + s.Config.AccrualConfig.String() + "/api/orders/" + orderNumber)
-	if err != nil {
-		logger.Log.Error("Accrual sys responce error", zap.Error(err))
-		return err
-	}
-	defer response.Body.Close()
-	statusCode := response.StatusCode
-	if statusCode == 200 {
-		logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-		var accrualModel models.AccrualModel
-		dec := json.NewDecoder(response.Body)
-		if err := dec.Decode(&accrualModel); err != nil {
-			logger.Log.Error("Cannot parse req body", zap.Error(err))
+
+	orderStatus := "NEW"
+	for orderStatus != "INVALID" && orderStatus != "PROCESSED" {
+
+		client := &http.Client{}
+		response, err := client.Get("http://" + s.Config.AccrualConfig.String() + "/api/orders/" + orderNumber)
+		if err != nil {
+			logger.Log.Error("Accrual sys responce error", zap.Error(err))
 			return err
 		}
-		logger.Log.Info("Acrrual sys responce:",
-			zap.String("Order", accrualModel.OrderNumber),
-			zap.Float32("Accrual", accrualModel.Accrual),
-			zap.String("Status", accrualModel.Status))
-		logger.Log.Info("1 User ID", zap.String("UID", userID))
-		if err := s.updateOrderAndBalance(accrualModel, userID); err != nil {
-			logger.Log.Error("Accrual db update Error", zap.Error(err))
-			return err
+		defer response.Body.Close()
+		statusCode := response.StatusCode
+		if statusCode == 200 {
+			logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+			var accrualModel models.AccrualModel
+			dec := json.NewDecoder(response.Body)
+			if err := dec.Decode(&accrualModel); err != nil {
+				logger.Log.Error("Cannot parse req body", zap.Error(err))
+				return err
+			}
+			logger.Log.Info("Acrrual sys responce:",
+				zap.String("Order", accrualModel.OrderNumber),
+				zap.Float32("Accrual", accrualModel.Accrual),
+				zap.String("Status", accrualModel.Status))
+			logger.Log.Info("1 User ID", zap.String("UID", userID))
+			orderStatus = accrualModel.Status
+			if err := s.updateOrderAndBalance(accrualModel, userID); err != nil {
+				logger.Log.Error("Accrual db update Error", zap.Error(err))
+				return err
+			}
 		}
-		return nil
+		if statusCode == 204 {
+			logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+			return errors.New("Заказ не зарегестрирован")
+		}
+		if statusCode == 429 {
+			logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+		}
 	}
-	if statusCode == 204 {
-		logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-		return errors.New("Заказ не зарегестрирован")
-	}
-	if statusCode == 429 {
-		logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-		return errors.New("Превышено количество запросов")
-	}
-	log.Print(statusCode)
 	return nil
 }
 

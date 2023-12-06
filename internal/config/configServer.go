@@ -32,7 +32,7 @@ func (config *ConfigServer) Set(s string) error {
 		return err
 	}
 	if matched {
-		if strings.Contains(s, "http://") {
+		if strings.HasPrefix(s, "http://") {
 			fullURL := strings.Replace(s, "http://", "", -1)
 			fullURLSplit := strings.Split(fullURL, ":")
 			port, err := strconv.Atoi(fullURLSplit[1])
