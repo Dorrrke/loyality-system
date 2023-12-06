@@ -26,8 +26,9 @@ import (
 const SecretKey = "SecretFurinaNotFokalors333"
 
 type Server struct {
-	storage storage.Storage
-	Config  config.Config
+	storage       storage.Storage
+	Config        config.Config
+	proccesedChen chan string
 }
 
 type Claims struct {
@@ -126,7 +127,7 @@ func (s *Server) UploadOrderHandler(res http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	uid, err := s.checkOrder(string(orderNum), userID)
+	uid, err := s.checkOrder(string(orderNum))
 	if err != nil {
 		if errors.Is(err, errorsstorage.ErrOrderNotExist) {
 			logger.Log.Info("UserID", zap.String("UID from toketn", userID), zap.String("UserId from db", uid))
@@ -136,7 +137,8 @@ func (s *Server) UploadOrderHandler(res http.ResponseWriter, req *http.Request) 
 				http.Error(res, "Внутренняя ошибка серевера", http.StatusInternalServerError)
 				return
 			}
-			go s.getFromAccrualSys(string(orderNum), userID) // TODO асинхронность
+			s.proccesedChen <- string(orderNum)
+			// go s.getFromAccrualSys(string(orderNum), userID) // TODO асинхронность
 			res.WriteHeader(http.StatusAccepted)
 			return
 		}
@@ -261,47 +263,58 @@ func (s *Server) WriteOffBalanceHistoryHandler(res http.ResponseWriter, req *htt
 	}
 }
 
-func (s *Server) getFromAccrualSys(orderNumber string, userID string) error {
+func (s *Server) getFromAccrualSys() error {
 
-	orderStatus := "NEW"
-	for orderStatus != "INVALID" && orderStatus != "PROCESSED" {
+	client := &http.Client{}
+	getStr := "http://" + s.Config.AccrualConfig.String() + "/api/orders/"
+	var orderQueue []string
+	for {
+		select {
+		case row := <-s.proccesedChen:
+			orderQueue = append(orderQueue, row)
+		default:
+			orderStatus := "NEW"
+			for orderStatus != "INVALID" && orderStatus != "PROCESSED" {
+				response, err := client.Get(getStr + orderQueue[0])
+				if err != nil {
+					logger.Log.Error("Accrual sys responce error", zap.Error(err))
+					return err
+				}
+				defer response.Body.Close()
+				statusCode := response.StatusCode
+				if statusCode == http.StatusOK {
+					logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+					var accrualModel models.AccrualModel
+					dec := json.NewDecoder(response.Body)
+					if err := dec.Decode(&accrualModel); err != nil {
+						logger.Log.Error("Cannot parse req body", zap.Error(err))
+						return err
+					}
+					logger.Log.Info("Acrrual sys responce:",
+						zap.String("Order", accrualModel.OrderNumber),
+						zap.Float32("Accrual", accrualModel.Accrual),
+						zap.String("Status", accrualModel.Status))
+					orderStatus = accrualModel.Status
+					uID, err := s.checkOrder(orderQueue[0])
+					if err != nil {
+						return err
+					}
 
-		client := &http.Client{}
-		response, err := client.Get("http://" + s.Config.AccrualConfig.String() + "/api/orders/" + orderNumber)
-		if err != nil {
-			logger.Log.Error("Accrual sys responce error", zap.Error(err))
-			return err
-		}
-		defer response.Body.Close()
-		statusCode := response.StatusCode
-		if statusCode == 200 {
-			logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-			var accrualModel models.AccrualModel
-			dec := json.NewDecoder(response.Body)
-			if err := dec.Decode(&accrualModel); err != nil {
-				logger.Log.Error("Cannot parse req body", zap.Error(err))
-				return err
+					if err := s.updateOrderAndBalance(accrualModel, uID); err != nil {
+						logger.Log.Error("Accrual db update Error", zap.Error(err))
+						return err
+					}
+				}
+				if statusCode == http.StatusNoContent {
+					logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+					return errors.New("Заказ не зарегестрирован")
+				}
+				if statusCode == http.StatusTooManyRequests {
+					logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+				}
 			}
-			logger.Log.Info("Acrrual sys responce:",
-				zap.String("Order", accrualModel.OrderNumber),
-				zap.Float32("Accrual", accrualModel.Accrual),
-				zap.String("Status", accrualModel.Status))
-			logger.Log.Info("1 User ID", zap.String("UID", userID))
-			orderStatus = accrualModel.Status
-			if err := s.updateOrderAndBalance(accrualModel, userID); err != nil {
-				logger.Log.Error("Accrual db update Error", zap.Error(err))
-				return err
-			}
-		}
-		if statusCode == 204 {
-			logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-			return errors.New("Заказ не зарегестрирован")
-		}
-		if statusCode == 429 {
-			logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
 		}
 	}
-	return nil
 }
 
 func (s *Server) saveUser(user models.AuthModel, salt string) (string, error) {
@@ -495,7 +508,7 @@ func (s *Server) matchPasswords(currentPass string, passFromDB string) bool {
 	}
 }
 
-func (s *Server) checkOrder(order string, uid string) (string, error) {
+func (s *Server) checkOrder(order string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -537,4 +550,9 @@ func (s *Server) ClearTables() error {
 
 func (s *Server) ConnStorage(stor storage.Storage) {
 	s.storage = stor
+}
+
+func (s *Server) New() {
+	s.proccesedChen = make(chan string, 5)
+	go s.getFromAccrualSys()
 }
