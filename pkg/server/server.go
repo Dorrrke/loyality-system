@@ -267,53 +267,50 @@ func (s *Server) getFromAccrualSys() error {
 
 	client := &http.Client{}
 	getStr := "http://" + s.Config.AccrualConfig.String() + "/api/orders/"
-	var orderQueue []string
 	for {
 		select {
 		case row := <-s.proccesedChen:
-			orderQueue = append(orderQueue, row)
-		default:
-			orderStatus := "NEW"
-			for orderStatus != "INVALID" && orderStatus != "PROCESSED" {
-				response, err := client.Get(getStr + orderQueue[0])
-				if err != nil {
-					logger.Log.Error("Accrual sys responce error", zap.Error(err))
+			response, err := client.Get(getStr + row)
+			if err != nil {
+				logger.Log.Error("Accrual sys responce error", zap.Error(err))
+				return err
+			}
+			defer response.Body.Close()
+			statusCode := response.StatusCode
+			if statusCode == http.StatusOK {
+				logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+				var accrualModel models.AccrualModel
+				dec := json.NewDecoder(response.Body)
+				if err := dec.Decode(&accrualModel); err != nil {
+					logger.Log.Error("Cannot parse req body", zap.Error(err))
 					return err
 				}
-				defer response.Body.Close()
-				statusCode := response.StatusCode
-				if statusCode == http.StatusOK {
-					logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-					var accrualModel models.AccrualModel
-					dec := json.NewDecoder(response.Body)
-					if err := dec.Decode(&accrualModel); err != nil {
-						logger.Log.Error("Cannot parse req body", zap.Error(err))
-						return err
-					}
-					logger.Log.Info("Acrrual sys responce:",
-						zap.String("Order", accrualModel.OrderNumber),
-						zap.Int("Accrual", accrualModel.Accrual),
-						zap.String("Status", accrualModel.Status))
-					orderStatus = accrualModel.Status
-					uID, err := s.checkOrder(orderQueue[0])
-					if err != nil {
-						return err
-					}
+				logger.Log.Info("Acrrual sys responce:",
+					zap.String("Order", accrualModel.OrderNumber),
+					zap.Int("Accrual", accrualModel.Accrual),
+					zap.String("Status", accrualModel.Status))
+				uID, err := s.checkOrder(row)
+				if err != nil {
+					return err
+				}
 
-					if err := s.updateOrderAndBalance(accrualModel, uID); err != nil {
-						logger.Log.Error("Accrual db update Error", zap.Error(err))
-						return err
-					}
+				if err := s.updateOrderAndBalance(accrualModel, uID); err != nil {
+					logger.Log.Error("Accrual db update Error", zap.Error(err))
+					return err
 				}
-				if statusCode == http.StatusNoContent {
-					logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-					return errors.New("Заказ не зарегестрирован")
+
+				if accrualModel.Status != "INVALID" && accrualModel.Status != "PROCESSED" {
+					s.proccesedChen <- row
 				}
-				if statusCode == http.StatusTooManyRequests {
-					logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-				}
+				return nil
 			}
-			orderQueue = nil
+			if statusCode == http.StatusNoContent {
+				logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+				return errors.New("Заказ не зарегестрирован")
+			}
+			if statusCode == http.StatusTooManyRequests {
+				logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+			}
 		}
 	}
 }
