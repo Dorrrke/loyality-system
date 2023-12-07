@@ -313,6 +313,7 @@ func (s *Server) getFromAccrualSys() error {
 					logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
 				}
 			}
+			orderQueue = nil
 		}
 	}
 }
