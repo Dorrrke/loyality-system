@@ -110,7 +110,7 @@ func initDB(DBAddr string) *pgxpool.Pool {
 	if err != nil {
 		logger.Log.Error("Error wile init db driver: " + err.Error())
 		log.Println("Panic db")
-		os.Exit(1)
+		panic(err)
 	}
 	return pool
 

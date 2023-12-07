@@ -13,6 +13,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var db = flag.String("db", "", "DataBase url")
@@ -208,9 +209,8 @@ func TestUploadOrderHandler(t *testing.T) {
 	server.ConnStorage(&storage.DataBaseStorage{DB: conn})
 	defer conn.Close()
 
-	if err := server.CreateTable(); err != nil {
-		panic(err)
-	}
+	err = server.CreateTable()
+	require.NoError(t, err)
 
 	r := chi.NewRouter()
 

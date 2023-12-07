@@ -292,7 +292,7 @@ func (s *Server) getFromAccrualSys() error {
 					}
 					logger.Log.Info("Acrrual sys responce:",
 						zap.String("Order", accrualModel.OrderNumber),
-						zap.Float32("Accrual", accrualModel.Accrual),
+						zap.Int("Accrual", accrualModel.Accrual),
 						zap.String("Status", accrualModel.Status))
 					orderStatus = accrualModel.Status
 					uID, err := s.checkOrder(orderQueue[0])
