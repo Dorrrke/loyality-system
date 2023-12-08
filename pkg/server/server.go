@@ -296,7 +296,8 @@ func (s *Server) getFromAccrualSys(orderNumber string, userID string) error {
 	}
 	if statusCode == 429 {
 		logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-		return errors.New("Превышено количество запросов")
+		time.Sleep(5 * time.Second)
+		s.getFromAccrualSys(orderNumber, userID)
 	}
 	log.Print(statusCode)
 	return nil
@@ -430,7 +431,7 @@ func (s *Server) writeOffBonuces(withdraw models.Withdraw, userID string) error 
 		return err
 	}
 
-	if balance.Current-withdraw.Sum < 0 {
+	if balance.Current-int(withdraw.Sum) < 0 {
 		return errors.New("insufficient fund")
 	}
 
@@ -439,7 +440,7 @@ func (s *Server) writeOffBonuces(withdraw models.Withdraw, userID string) error 
 		logger.Log.Error("str to int err", zap.Error(err))
 		return err
 	}
-	current := balance.Current - withdraw.Sum
+	current := balance.Current - int(withdraw.Sum)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
