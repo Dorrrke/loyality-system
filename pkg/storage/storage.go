@@ -30,6 +30,7 @@ type Storage interface {
 	UpdateByAccrual(ctx context.Context, accrual models.AccrualModel, userID string) error
 	CreateTables(ctx context.Context) error
 	ClearTables(ctx context.Context) error
+	GetNoTerminateOrders(ctx context.Context) ([]string, error)
 }
 
 type DataBaseStorage struct {
@@ -323,4 +324,30 @@ func (db *DataBaseStorage) ClearTables(ctx context.Context) error {
 		return errors.Wrap(err, "withdrawals table err")
 	}
 	return tx.Commit(ctx)
+}
+
+func (db *DataBaseStorage) GetNoTerminateOrders(ctx context.Context) ([]string, error) {
+	row, err := db.DB.Query(ctx, `SELECT number FROM orders WHERE status != 'INVALID' or status !='PROCESSED'`)
+	if err != nil {
+		return nil, errors.Wrap(err, "Get orders error")
+	}
+	defer row.Close()
+	var orderNumbers []string
+	for row.Next() {
+		var orderNumber string
+		if err := row.Scan(&orderNumber); err != nil {
+			return nil, errors.Wrap(err, "Parsing withdrawls info error")
+		}
+		orderNumbers = append(orderNumbers, orderNumber)
+	}
+	err = row.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(orderNumbers) == 0 {
+		return nil, errorsstorage.ErrOrderNotExist
+	}
+
+	return orderNumbers, nil
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -26,11 +27,9 @@ import (
 const SecretKey = "SecretFurinaNotFokalors333"
 
 type Server struct {
-	storage       storage.Storage
-	Config        config.Config
-	proccesedChen chan string
-	accrualData   chan models.AccrualModel
-	quit          chan bool
+	storage storage.Storage
+	Config  config.Config
+	client  *http.Client
 }
 
 type Claims struct {
@@ -139,8 +138,7 @@ func (s *Server) UploadOrderHandler(res http.ResponseWriter, req *http.Request) 
 				http.Error(res, "Внутренняя ошибка серевера", http.StatusInternalServerError)
 				return
 			}
-			s.proccesedChen <- string(orderNum)
-			// go s.getFromAccrualSys(string(orderNum), userID) // TODO асинхронность
+			go s.getFromAccrualSys(string(orderNum), userID) // TODO асинхронность
 			res.WriteHeader(http.StatusAccepted)
 			return
 		}
@@ -265,76 +263,82 @@ func (s *Server) WriteOffBalanceHistoryHandler(res http.ResponseWriter, req *htt
 	}
 }
 
-func (s *Server) getFromAccrualSys() error {
-
-	client := &http.Client{}
-	getStr := "http://" + s.Config.AccrualConfig.String() + "/api/orders/"
-loop:
-	for {
-		select {
-		case row := <-s.proccesedChen:
-			response, err := client.Get(getStr + row)
-			if err != nil {
-				logger.Log.Error("Accrual sys responce error", zap.Error(err))
-				return err
-			}
-			defer response.Body.Close()
-			statusCode := response.StatusCode
-			switch statusCode {
-			case http.StatusOK:
-				var accrualModel models.AccrualModel
-				dec := json.NewDecoder(response.Body)
-				if err := dec.Decode(&accrualModel); err != nil {
-					logger.Log.Error("Cannot parse req body", zap.Error(err))
-					return err
-				}
-				uID, err := s.checkOrder(row)
-				if err != nil {
-					return err
-				}
-
-				if err := s.updateOrderAndBalance(accrualModel, uID); err != nil {
-					logger.Log.Error("Accrual db update Error", zap.Error(err))
-					return err
-				}
-			case http.StatusNoContent:
-				logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-				return errors.New("Заказ не зарегестрирован")
-			case http.StatusTooManyRequests:
-				logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-			}
-		case <-s.quit:
-			break loop
-		}
+func (s *Server) getFromAccrualSys(orderNumber string, userID string) error {
+	response, err := s.client.Get("http://" + s.Config.AccrualConfig.String() + "/api/orders/" + orderNumber)
+	if err != nil {
+		logger.Log.Error("Accrual sys responce error", zap.Error(err))
+		return err
 	}
+	defer response.Body.Close()
+	statusCode := response.StatusCode
+	if statusCode == 200 {
+		logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+		var accrualModel models.AccrualModel
+		dec := json.NewDecoder(response.Body)
+		if err := dec.Decode(&accrualModel); err != nil {
+			logger.Log.Error("Cannot parse req body", zap.Error(err))
+			return err
+		}
+		logger.Log.Info("Acrrual sys responce:",
+			zap.String("Order", accrualModel.OrderNumber),
+			zap.Int("Accrual", accrualModel.Accrual),
+			zap.String("Status", accrualModel.Status))
+		logger.Log.Info("1 User ID", zap.String("UID", userID))
+		if err := s.updateOrderAndBalance(accrualModel, userID); err != nil {
+			logger.Log.Error("Accrual db update Error", zap.Error(err))
+			return err
+		}
+		return nil
+	}
+	if statusCode == 204 {
+		logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+		return errors.New("Заказ не зарегестрирован")
+	}
+	if statusCode == 429 {
+		logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+		return errors.New("Превышено количество запросов")
+	}
+	log.Print(statusCode)
 	return nil
 }
 
-func (s *Server) checkAccrualData() error {
-loop:
+func (s *Server) updateOrdersByAccrual() {
 	for {
-		select {
-		case row := <-s.accrualData:
-			uID, err := s.checkOrder(row.OrderNumber)
-			if err != nil {
-				return err
+		flag := true
+		orders, err := s.GetAllDetOrders()
+		if err != nil {
+			logger.Log.Error("Err", zap.Error(err))
+			if errors.Is(err, errorsstorage.ErrOrderNotExist) {
+				flag = false
 			}
-
-			if err := s.updateOrderAndBalance(row, uID); err != nil {
-				logger.Log.Error("Accrual db update Error", zap.Error(err))
-				return err
+		}
+		if flag {
+			for _, v := range orders {
+				orderNum := v
+				go func() error {
+					uID, err := s.checkOrder(orderNum)
+					if err != nil {
+						return err
+					}
+					err = s.getFromAccrualSys(orderNum, uID)
+					if err != nil {
+						return err
+					}
+					return nil
+				}()
 			}
-
-			if row.Status != "PROCESSED" && row.Status != "INVALID" {
-				s.proccesedChen <- row.OrderNumber
-			}
-		case <-s.quit:
-			break loop
 		}
 	}
-	return nil
 }
-
+func (s *Server) GetAllDetOrders() ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	orders, err := s.storage.GetNoTerminateOrders(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
 func (s *Server) saveUser(user models.AuthModel, salt string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -571,9 +575,6 @@ func (s *Server) ConnStorage(stor storage.Storage) {
 }
 
 func (s *Server) New() {
-	s.proccesedChen = make(chan string, 5)
-	s.accrualData = make(chan models.AccrualModel, 5)
-	s.quit = make(chan bool)
-	go s.getFromAccrualSys()
-	go s.checkAccrualData()
+	s.client = &http.Client{}
+	go s.updateOrdersByAccrual()
 }

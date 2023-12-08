@@ -24,6 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 	var s server.Server
+	s.New()
 	var DBaddr string
 
 	flag.Var(&s.Config.HostConfig, "a", "address and port to run server")
