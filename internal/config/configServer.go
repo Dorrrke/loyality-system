@@ -32,7 +32,7 @@ func (config *ConfigServer) Set(s string) error {
 		return err
 	}
 	if matched {
-		if strings.HasPrefix(s, "http://") {
+		if strings.Contains(s, "http://") {
 			fullURL := strings.Replace(s, "http://", "", -1)
 			fullURLSplit := strings.Split(fullURL, ":")
 			port, err := strconv.Atoi(fullURLSplit[1])
@@ -42,16 +42,16 @@ func (config *ConfigServer) Set(s string) error {
 			config.Host = fullURLSplit[0]
 			config.Port = port
 			return nil
+		} else {
+			fullURL := strings.Split(s, ":")
+			port, err := strconv.Atoi(fullURL[1])
+			if err != nil {
+				return err
+			}
+			config.Host = fullURL[0]
+			config.Port = port
+			return nil
 		}
-		fullURL := strings.Split(s, ":")
-		port, err := strconv.Atoi(fullURL[1])
-		if err != nil {
-			return err
-		}
-		config.Host = fullURL[0]
-		config.Port = port
-		return nil
-
 	} else {
 		if s == "" || s == " " {
 			config.Host = "localhost"
