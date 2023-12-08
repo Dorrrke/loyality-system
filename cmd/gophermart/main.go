@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/Dorrrke/loyality-system.git/internal/logger"
 	"github.com/Dorrrke/loyality-system.git/pkg/server"
@@ -21,7 +21,7 @@ func main() {
 	if err := logger.Initialize(zap.InfoLevel.String()); err != nil {
 		log.Println("init logger error" + err.Error())
 		log.Println("Panic logger")
-		os.Exit(1)
+		panic(err)
 	}
 	var s server.Server
 	s.New()
@@ -62,7 +62,7 @@ func main() {
 		log.Println("Error init db")
 		log.Println("DB env str" + s.Config.EnvValues.DataBaseDsn.DBDSN)
 		log.Println("DB flag str" + DBaddr)
-		os.Exit(1)
+		panic(errors.New("not init db"))
 	}
 	if err := s.CreateTable(); err != nil {
 		logger.Log.Error("Error create tables", zap.Error(err))
