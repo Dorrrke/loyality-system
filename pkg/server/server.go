@@ -288,13 +288,20 @@ loop:
 					logger.Log.Error("Cannot parse req body", zap.Error(err))
 					return err
 				}
-				s.accrualData <- accrualModel
+				uID, err := s.checkOrder(row)
+				if err != nil {
+					return err
+				}
+
+				if err := s.updateOrderAndBalance(accrualModel, uID); err != nil {
+					logger.Log.Error("Accrual db update Error", zap.Error(err))
+					return err
+				}
 			case http.StatusNoContent:
 				logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
 				return errors.New("Заказ не зарегестрирован")
 			case http.StatusTooManyRequests:
 				logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
-				s.proccesedChen <- row
 			}
 		case <-s.quit:
 			break loop
