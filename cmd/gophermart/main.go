@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/Dorrrke/loyality-system.git/internal/logger"
 	"github.com/Dorrrke/loyality-system.git/pkg/server"
@@ -21,10 +21,9 @@ func main() {
 	if err := logger.Initialize(zap.InfoLevel.String()); err != nil {
 		log.Println("init logger error" + err.Error())
 		log.Println("Panic logger")
-		panic(err)
+		os.Exit(1)
 	}
 	var s server.Server
-	s.New()
 	var DBaddr string
 
 	flag.Var(&s.Config.HostConfig, "a", "address and port to run server")
@@ -62,16 +61,17 @@ func main() {
 		log.Println("Error init db")
 		log.Println("DB env str" + s.Config.EnvValues.DataBaseDsn.DBDSN)
 		log.Println("DB flag str" + DBaddr)
-		panic(errors.New("not init db"))
+		os.Exit(1)
 	}
 	if err := s.CreateTable(); err != nil {
 		logger.Log.Error("Error create tables", zap.Error(err))
 	}
+	s.New()
 	err := run(s)
 	if err != nil {
 		logger.Log.Error("Run server error", zap.Error(err))
 		log.Println("Panic run")
-		panic(err)
+		os.Exit(1)
 	}
 }
 
@@ -111,7 +111,7 @@ func initDB(DBAddr string) *pgxpool.Pool {
 	if err != nil {
 		logger.Log.Error("Error wile init db driver: " + err.Error())
 		log.Println("Panic db")
-		panic(err)
+		os.Exit(1)
 	}
 	return pool
 

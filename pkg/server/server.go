@@ -328,6 +328,7 @@ func (s *Server) updateOrdersByAccrual() {
 				}()
 			}
 		}
+		time.Sleep(5 * time.Second)
 	}
 }
 func (s *Server) GetAllDetOrders() ([]string, error) {
