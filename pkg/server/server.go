@@ -172,6 +172,7 @@ func (s *Server) UnloadHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Внутренняя ошибка серевера", http.StatusInternalServerError)
 		return
 	}
+	logger.Log.Info("unload orders:", zap.Any("orders", orders))
 	res.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(orders); err != nil {
@@ -272,7 +273,7 @@ func (s *Server) getFromAccrualSys(orderNumber string, userID string) error {
 	defer response.Body.Close()
 	statusCode := response.StatusCode
 	if statusCode == 200 {
-		logger.Log.Info("Accrual", zap.Int("StatusCode", statusCode))
+		logger.Log.Info("Accrual system response", zap.Int("StatusCode", statusCode))
 		var accrualModel models.AccrualModel
 		dec := json.NewDecoder(response.Body)
 		if err := dec.Decode(&accrualModel); err != nil {
