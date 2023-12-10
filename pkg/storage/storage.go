@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"embed"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/Dorrrke/loyality-system.git/pkg/models"
 	"github.com/Dorrrke/loyality-system.git/pkg/storage/errorsstorage"
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -329,7 +331,12 @@ func (db *DataBaseStorage) ClearTables(ctx context.Context) error {
 }
 
 func (db *DataBaseStorage) MigrationUp(migrationPath string, dbURL string) error {
-	m, err := migrate.New(migrationPath, dbURL)
+	var fs embed.FS
+	d, err := iofs.New(fs, migrationPath)
+	if err != nil {
+		logger.Log.Error("Migration iofs error:", zap.Error(err))
+	}
+	m, err := migrate.NewWithSourceInstance("iofs", d, dbURL)
 	if err != nil {
 		return err
 	}

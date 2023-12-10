@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const MigrationPath = "./migrations"
+const MigrationPath = "loyality-system/migrations"
 
 type ServerAdrConfig struct {
 	Addr string `env:"RUN_ADDRESS,required"`

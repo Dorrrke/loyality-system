@@ -63,19 +63,20 @@ func main() {
 		log.Println("DB flag str" + DBaddr)
 		os.Exit(1)
 	}
-	// if err := s.CreateTable(); err != nil {
-	// 	logger.Log.Error("Error create tables", zap.Error(err))
-	// }
-	logger.Log.Info("DB migration")
-	if s.Config.EnvValues.DataBaseDsn.DBDSN != "" {
-		if err := s.MigrateDB(s.Config.EnvValues.DataBaseDsn.DBDSN); err != nil {
-			logger.Log.Error("Migration failed", zap.Error(err))
-		}
-	} else {
-		if err := s.MigrateDB(DBaddr); err != nil {
-			logger.Log.Error("Migration failed", zap.Error(err))
-		}
+	if err := s.CreateTable(); err != nil {
+		logger.Log.Error("Error create tables", zap.Error(err))
 	}
+	// TODO: Решить проблему с миграцией; Вылетает ошибка no scheme
+	// logger.Log.Info("DB migration")
+	// if s.Config.EnvValues.DataBaseDsn.DBDSN != "" {
+	// 	if err := s.MigrateDB(s.Config.EnvValues.DataBaseDsn.DBDSN); err != nil {
+	// 		logger.Log.Error("Migration failed", zap.Error(err))
+	// 	}
+	// } else {
+	// 	if err := s.MigrateDB(DBaddr); err != nil {
+	// 		logger.Log.Error("Migration failed", zap.Error(err))
+	// 	}
+	// }
 	s.New()
 	err := run(s)
 	if err != nil {
