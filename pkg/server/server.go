@@ -123,7 +123,7 @@ func (s *Server) UploadOrderHandler(res http.ResponseWriter, req *http.Request) 
 	}
 
 	if !orderNumberValid(string(orderNum)) {
-		logger.Log.Error("Order number isnt valid")
+		logger.Log.Error("Order number isnt valid", zap.String("Order number", string(orderNum)))
 		http.Error(res, "Неверный формат номера заказа", http.StatusUnprocessableEntity)
 		return
 	}
