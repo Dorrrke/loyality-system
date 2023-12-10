@@ -213,7 +213,7 @@ func (db *DataBaseStorage) UpdateByAccrual(ctx context.Context, accrual models.A
 		return err
 	}
 
-	if _, err := tx.Exec(ctx, "update order", accrual.Status, accrual.Accrual, accrual.OrderNumber); err != nil {
+	if _, err := tx.Exec(ctx, "update order", accrual.Status, int(accrual.Accrual), accrual.OrderNumber); err != nil {
 		return err
 	}
 	uid, err := strconv.Atoi(userID)

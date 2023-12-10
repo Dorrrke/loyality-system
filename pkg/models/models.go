@@ -29,7 +29,7 @@ type AuthModel struct {
 }
 
 type AccrualModel struct {
-	OrderNumber string `json:"order"`
-	Status      string `json:"status"`
-	Accrual     int    `json:"accrual"`
+	OrderNumber string  `json:"order"`
+	Status      string  `json:"status"`
+	Accrual     float32 `json:"accrual"`
 }

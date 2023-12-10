@@ -281,7 +281,7 @@ func (s *Server) getFromAccrualSys(orderNumber string, userID string) error {
 		}
 		logger.Log.Info("Acrrual sys responce:",
 			zap.String("Order", accrualModel.OrderNumber),
-			zap.Int("Accrual", accrualModel.Accrual),
+			zap.Float32("Accrual", accrualModel.Accrual),
 			zap.String("Status", accrualModel.Status))
 		logger.Log.Info("1 User ID", zap.String("UID", userID))
 		if err := s.updateOrderAndBalance(accrualModel, userID); err != nil {
