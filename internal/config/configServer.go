@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const MigrationPath = "./migrations"
+
 type ServerAdrConfig struct {
 	Addr string `env:"RUN_ADDRESS,required"`
 }

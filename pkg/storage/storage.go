@@ -9,6 +9,7 @@ import (
 	"github.com/Dorrrke/loyality-system.git/internal/logger"
 	"github.com/Dorrrke/loyality-system.git/pkg/models"
 	"github.com/Dorrrke/loyality-system.git/pkg/storage/errorsstorage"
+	"github.com/golang-migrate/migrate/v4"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -31,6 +32,7 @@ type Storage interface {
 	CreateTables(ctx context.Context) error
 	ClearTables(ctx context.Context) error
 	GetNoTerminateOrders(ctx context.Context) ([]string, error)
+	MigrationUp(migrationPath string, dbURL string) error
 }
 
 type DataBaseStorage struct {
@@ -324,6 +326,25 @@ func (db *DataBaseStorage) ClearTables(ctx context.Context) error {
 		return errors.Wrap(err, "withdrawals table err")
 	}
 	return tx.Commit(ctx)
+}
+
+func (db *DataBaseStorage) MigrationUp(migrationPath string, dbURL string) error {
+	m, err := migrate.New(migrationPath, dbURL)
+	if err != nil {
+		return err
+	}
+
+	err = m.Up()
+	if err != nil {
+		if errors.As(err, migrate.ErrNoChange) {
+			logger.Log.Info("Migration Data Base No Change")
+			return nil
+		}
+		return err
+	}
+
+	logger.Log.Info("Migration applied succsessfully")
+	return nil
 }
 
 func (db *DataBaseStorage) GetNoTerminateOrders(ctx context.Context) ([]string, error) {

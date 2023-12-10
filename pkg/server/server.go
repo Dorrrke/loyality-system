@@ -555,6 +555,15 @@ func (s *Server) uploadOrder(order string, uid string) error {
 	return nil
 }
 
+func (s *Server) MigrateDB(dbAddr string) error {
+	err := s.storage.MigrationUp(config.MigrationPath, s.Config.EnvValues.DataBaseDsn.DBDSN)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
 func (s *Server) CreateTable() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
