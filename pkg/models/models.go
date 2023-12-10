@@ -1,21 +1,21 @@
 package models
 
 type Order struct {
-	Number     string `json:"number"`
-	Status     string `json:"status"`
-	Accrual    int    `json:"accrual"`
-	UploadedAt string `json:"uploaded_at"`
+	Number     string  `json:"number"`
+	Status     string  `json:"status"`
+	Accrual    float32 `json:"accrual"`
+	UploadedAt string  `json:"uploaded_at"`
 }
 
 type Balance struct {
-	Current  int `json:"current"`
-	Withdraw int `json:"withdrawn"`
+	Current  float32 `json:"current"`
+	Withdraw float32 `json:"withdrawn"`
 }
 
 type WithdrawInfo struct {
-	Order       string `json:"order"`
-	Sum         int    `json:"sum"`
-	ProcessedAt string `json:"processed_at"`
+	Order       string  `json:"order"`
+	Sum         float32 `json:"sum"`
+	ProcessedAt string  `json:"processed_at"`
 }
 
 type Withdraw struct {

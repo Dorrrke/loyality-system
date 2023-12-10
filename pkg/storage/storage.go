@@ -24,7 +24,7 @@ type Storage interface {
 	GetAllOrders(ctx context.Context, userID string) ([]models.Order, error)
 	GetUserBalance(ctx context.Context, userID int) (models.Balance, error)
 	GetUsersWithdrawls(ctx context.Context, userID int) ([]models.WithdrawInfo, error)
-	InsertWriteOffBonuces(ctx context.Context, withdraw models.Withdraw, current int, userID int) error
+	InsertWriteOffBonuces(ctx context.Context, withdraw models.Withdraw, current float32, userID int) error
 	GetUserByLogin(ctx context.Context, login string, password string) (int, string, error)
 	CheckOrder(ctx context.Context, order string) (string, error)
 	UpdateByAccrual(ctx context.Context, accrual models.AccrualModel, userID string) error
@@ -175,7 +175,7 @@ func (db *DataBaseStorage) GetUsersWithdrawls(ctx context.Context, userID int) (
 
 	return withdrawls, nil
 }
-func (db *DataBaseStorage) InsertWriteOffBonuces(ctx context.Context, withdraw models.Withdraw, current int, userID int) error {
+func (db *DataBaseStorage) InsertWriteOffBonuces(ctx context.Context, withdraw models.Withdraw, current float32, userID int) error {
 
 	tx, err := db.DB.Begin(ctx)
 	if err != nil {
@@ -253,8 +253,8 @@ func (db *DataBaseStorage) CreateTables(ctx context.Context) error {
 	(
 		id serial PRIMARY KEY,
 		uid integer NOT NULL,
-		current integer NOT NULL,
-		withdrawn integer NOT NULL,
+		current numeric(5,2) NOT NULL,
+		withdrawn numeric(5,2) NOT NULL,
 		FOREIGN KEY (uid) REFERENCES users (uid) ON UPDATE CASCADE ON DELETE CASCADE
 	)`)
 	if err != nil {
@@ -265,7 +265,7 @@ func (db *DataBaseStorage) CreateTables(ctx context.Context) error {
 		id serial PRIMARY KEY,
 		"number" character(55) NOT NULL,
 		status character(125),
-		accrual integer,
+		accrual numeric(5,2),
 		date timestamp with time zone NOT NULL DEFAULT now(),
 		uid integer NOT NULL DEFAULT 1,
 		FOREIGN KEY (uid) REFERENCES users (uid) ON UPDATE CASCADE ON DELETE CASCADE
@@ -283,7 +283,7 @@ func (db *DataBaseStorage) CreateTables(ctx context.Context) error {
 	(
 		w_id serial PRIMARY KEY,
 		"order" character(255) NOT NULL,
-		sum integer NOT NULL,
+		sum numeric(5,2) NOT NULL,
 		processed_at timestamp with time zone NOT NULL DEFAULT now(),
 		uid integer NOT NULL,
 		FOREIGN KEY (uid) REFERENCES users (uid) ON UPDATE CASCADE ON DELETE CASCADE

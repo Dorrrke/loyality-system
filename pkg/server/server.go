@@ -431,7 +431,7 @@ func (s *Server) writeOffBonuces(withdraw models.Withdraw, userID string) error 
 		return err
 	}
 
-	if balance.Current-int(withdraw.Sum) < 0 {
+	if balance.Current-withdraw.Sum < 0 {
 		return errors.New("insufficient fund")
 	}
 
@@ -440,7 +440,7 @@ func (s *Server) writeOffBonuces(withdraw models.Withdraw, userID string) error 
 		logger.Log.Error("str to int err", zap.Error(err))
 		return err
 	}
-	current := balance.Current - int(withdraw.Sum)
+	current := balance.Current - withdraw.Sum
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
